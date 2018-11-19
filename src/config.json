@@ -2,7 +2,7 @@
     "ticketmaster" : {
         "version": "0.0.1",
         "listenURL" : "tcp://127.0.0.1:25566",
-        "ipfsURL" : "tcp://127.0.0.1:5001"
+        "ipfsURL" : "http://127.0.0.1:5001"
     }
 }
 
