@@ -1,2 +1,2 @@
 # pinboard
-A server that receives and accepts requests for IPFS "pins".
+A server that receives and handles authenticated requests to interact with the IPFS API.
