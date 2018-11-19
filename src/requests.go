@@ -28,9 +28,6 @@ type request struct {
 	Signature     ssh.Signature  `json:"signature"`
 }
 
-type requestContents struct {
-}
-
 func (n *server) getMasterRSAPub() ssh.PublicKey {
 	if n.masterRSAPub == nil {
 		pubkeyBytes, err := ioutil.ReadFile("security/master.pub")
