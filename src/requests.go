@@ -22,15 +22,16 @@ type server struct {
 
 type request struct {
 	TicketVersion semver.Version `json:"requestVersion"`
+	UserID        string         `json:"userID"`
 	Expiration    time.Time      `json:"timeEnd"`     //Date of signature expiraton. So we can remove logs of previous requests.
 	IPFSRequest   string         `json:"ipfsRequest"` //Actual HTTP Request to be sent to the ipfs node
 	ServURL       url.URL        `json:"servURL"`     //THe URL of **us**, the node that fields requests.
 	Signature     ssh.Signature  `json:"signature"`
 }
 
-func (n *server) getMasterRSAPub() ssh.PublicKey {
+func (n *server) getRSAPub(uid string) ssh.PublicKey {
 	if n.masterRSAPub == nil {
-		pubkeyBytes, err := ioutil.ReadFile("security/master.pub")
+		pubkeyBytes, err := ioutil.ReadFile("security/users/" + uid + ".pub")
 		if err == nil {
 			readPubKey, _, _, _, err := ssh.ParseAuthorizedKey(pubkeyBytes)
 			if err == nil {
@@ -43,22 +44,18 @@ func (n *server) getMasterRSAPub() ssh.PublicKey {
 
 func (n *server) validRequest(request request) bool {
 	var validity bool
-	bytes, err := json.Marshal(request)
-	if err != nil &&
-		request.Expiration.After(time.Now()) &&
+	if request.Expiration.After(time.Now()) &&
 		n.servURL == request.ServURL {
-
-		masterPub := n.getMasterRSAPub()
-
-		if masterPub != nil &&
-			masterPub.Verify(bytes, &request.Signature) == nil {
-
-			requestString := fmt.Sprintf("%v", request)
-			_, found := n.requestCache.Get(requestString)
-
-			if !found {
-				n.requestCache.Set(requestString, 0, cache.DefaultExpiration)
-				validity = true
+		masterPub := n.getRSAPub(request.UserID)
+		if masterPub != nil {
+			bytes, err := json.Marshal(request)
+			if err != nil && masterPub.Verify(bytes, &request.Signature) == nil {
+				requestString := fmt.Sprintf("%v", request)
+				_, found := n.requestCache.Get(requestString)
+				if !found {
+					n.requestCache.Set(requestString, 0, cache.DefaultExpiration)
+					validity = true
+				}
 			}
 
 		}

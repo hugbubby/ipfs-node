@@ -4,7 +4,7 @@ A server that receives and handles authenticated requests to interact with the I
 
 Quick Cooking Instructions:
 Assuming binary is in working directory,
-1. Place 1 ssh public key at security/master.pub
+1. Place as many SSH keys for "users" as you want in security/users
 2. Place 1 TLS RSA public/private keypair at security/server.cert and security/server.key, respectively
 3. Add sugar
 
