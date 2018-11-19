@@ -1,6 +1,6 @@
 package main
 
-import "github.com/blang/semver"
+import "fmt"
 import "net"
 import "net/url"
 import "net/http"
@@ -9,8 +9,11 @@ import "errors"
 import "encoding/json"
 import "io/ioutil"
 import "golang.org/x/crypto/ssh"
+import "github.com/blang/semver"
+import "github.com/patrickmn/go-cache"
 
 type server struct {
+	requestCache *cache.Cache
 	nodeVersion  semver.Version
 	servURL      url.URL
 	ipfsURL      url.URL //URL to the IPFS installation.
@@ -19,11 +22,10 @@ type server struct {
 
 type request struct {
 	TicketVersion semver.Version `json:"requestVersion"`
-	//TODO: add request id so that replay attacks are not possible
-	Expiration  time.Time     `json:"timeEnd"`     //Date of request expiraton. So we can remove logs of previous requests.
-	IPFSRequest string        `json:"ipfsRequest"` //Actual HTTP Request to be sent to the ipfs node
-	ServURL     url.URL       `json:"servURL"`     //THe URL of **us**, the node that pins
-	Signature   ssh.Signature `json:"signature"`
+	Expiration    time.Time      `json:"timeEnd"`     //Date of signature expiraton. So we can remove logs of previous requests.
+	IPFSRequest   string         `json:"ipfsRequest"` //Actual HTTP Request to be sent to the ipfs node
+	ServURL       url.URL        `json:"servURL"`     //THe URL of **us**, the node that fields requests.
+	Signature     ssh.Signature  `json:"signature"`
 }
 
 type requestContents struct {
@@ -42,17 +44,28 @@ func (n *server) getMasterRSAPub() ssh.PublicKey {
 	return n.masterRSAPub
 }
 
-//TODO: Determines validity of pinrequest
 func (n *server) validRequest(request request) bool {
 	var validity bool
 	bytes, err := json.Marshal(request)
-	masterPub := n.getMasterRSAPub()
 	if err != nil &&
-		masterPub != nil &&
-		masterPub.Verify(bytes, &request.Signature) == nil &&
 		request.Expiration.After(time.Now()) &&
 		n.servURL == request.ServURL {
-		validity = true
+
+		masterPub := n.getMasterRSAPub()
+
+		if masterPub != nil &&
+			masterPub.Verify(bytes, &request.Signature) == nil {
+
+			requestString := fmt.Sprintf("%v", request)
+			_, found := n.requestCache.Get(requestString)
+
+			if !found {
+				n.requestCache.Set(requestString, 0, cache.DefaultExpiration)
+				validity = true
+			}
+
+		}
+
 	}
 	return validity
 }

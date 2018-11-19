@@ -1,9 +1,11 @@
 package main
 
-import "github.com/blang/semver"
+import "time"
 import "encoding/json"
 import "os"
 import "net/url"
+import "github.com/patrickmn/go-cache"
+import "github.com/blang/semver"
 
 //Main configuration structure.
 //Unmarshal json config into one of these
@@ -41,6 +43,8 @@ func (cn serverConfig) toServer() server {
 	if err == nil {
 		n.ipfsURL = *ipfsURL
 	}
+
+	n.requestCache = cache.New(10*time.Minute, 5*time.Minute)
 
 	return n
 }
