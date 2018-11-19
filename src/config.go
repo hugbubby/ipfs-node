@@ -9,10 +9,10 @@ import "net/url"
 //Unmarshal json config into one of these
 //structs.
 type configuration struct {
-	Ticketmaster ticketmasterConfig `json:"ticketmaster"`
+	Server serverConfig `json:"ticketmaster"`
 }
 
-type ticketmasterConfig struct {
+type serverConfig struct {
 	Version   string `json:"version"`
 	ListenURL string `json:"listenURL"`
 	IpfsURL   string `json:"ipfsURL"`
@@ -29,8 +29,8 @@ func (config *configuration) loadFile(filename string) error {
 	return err
 }
 
-func (cn ticketmasterConfig) toTicketmaster() ticketmaster {
-	var n ticketmaster
+func (cn serverConfig) toServer() server {
+	var n server
 
 	version, err := semver.Parse(cn.Version)
 	if err == nil {

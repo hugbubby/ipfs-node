@@ -9,7 +9,7 @@ func main() {
 
 	config := new(configuration)
 	config.loadFile("config.json")
-	tm := config.Ticketmaster.toTicketmaster()
+	server := config.Server.toServer()
 
 	cert, err := tls.LoadX509KeyPair("security/server.cert", "security/server.key")
 	if err != nil {
@@ -19,7 +19,7 @@ func main() {
 
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
 
-	listenURL, err := url.Parse(config.Ticketmaster.ListenURL)
+	listenURL, err := url.Parse(config.Server.ListenURL)
 	if err != nil {
 		log.Println("Error parsing configuration. Using defualt url.")
 		listenURL, _ = url.Parse("tcp://127.0.0.1:25566")
@@ -36,7 +36,7 @@ func main() {
 				log.Println(err)
 				continue
 			}
-			go tm.handleConnection(conn)
+			go server.handleConnection(conn)
 		}
 	}
 }
