@@ -1,22 +1,14 @@
 package main
 
-import "time"
 import "encoding/json"
 import "os"
 import "net/url"
-import "github.com/patrickmn/go-cache"
-import "github.com/blang/semver"
 
 //Main configuration structure.
 //Unmarshal json config into one of these
 //structs.
 type configuration struct {
-	Server serverConfig `json:"ticketmaster"`
-}
-
-type serverConfig struct {
-	Version   string `json:"version"`
-	ListenURL string `json:"listenURL"`
+	ServerURL string `json:"serverURL"`
 	IpfsURL   string `json:"ipfsURL"`
 }
 
@@ -31,20 +23,18 @@ func (config *configuration) loadFile(filename string) error {
 	return err
 }
 
-func (cn serverConfig) toServer() server {
-	var n server
+func (config *configuration) makeServer() server {
+	var s server
 
-	version, err := semver.Parse(cn.Version)
+	ipfsURL, err := url.Parse(config.IpfsURL)
 	if err == nil {
-		n.nodeVersion = version
+		s.ipfsURL = ipfsURL
 	}
 
-	ipfsURL, err := url.Parse(cn.IpfsURL)
+	serverURL, err := url.Parse(config.ServerURL)
 	if err == nil {
-		n.ipfsURL = *ipfsURL
+		s.URL = serverURL
 	}
 
-	n.requestCache = cache.New(10*time.Minute, 5*time.Minute)
-
-	return n
+	return s
 }

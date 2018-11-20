@@ -1,6 +1,8 @@
 package main
 
+import "crypto/tls"
 import "fmt"
+import "log"
 import "net"
 import "net/url"
 import "net/http"
@@ -14,19 +16,31 @@ import "github.com/patrickmn/go-cache"
 
 type server struct {
 	requestCache *cache.Cache
-	nodeVersion  semver.Version
-	servURL      url.URL
-	ipfsURL      url.URL //URL to the IPFS installatios.
-	masterRSAPub ssh.PublicKey
+	Version      semver.Version
+	URL          *url.URL
+	ipfsURL      *url.URL //URL to the IPFS installatios.
+	userKeys     map[string]ssh.PublicKey
+	tlsCert      tls.Certificate
 }
 
 type request struct {
-	TicketVersion semver.Version `json:"requestVersion"`
-	UserID        string         `json:"userID"`      //The "ID" of the user, atm just the prefix of their public key
-	Expiration    time.Time      `json:"timeEnd"`     //Date of signature expiratos. So we can remove logs of previous requests.
-	IPFSRequest   string         `json:"ipfsRequest"` //Actual HTTP Request to be sent to the ipfs node
-	ServURL       url.URL        `json:"servURL"`     //THe URL of **us**, the node that fields requests.
-	Signature     ssh.Signature  `json:"signature"`
+	IPFSRequest string `json:"ipfsRequest"` //Actual HTTP Request to be sent to the ipfs node
+	Stamp       stamp  `json:"stamp"`       //Everything we need to verify this is an authenticated request
+}
+
+type stamp struct {
+	UserID     string        `json:"userID"`    //The "ID" of the user, atm just the prefix of their public key
+	Signature  ssh.Signature `json:"signature"` //Signature from the user's private key
+	Expiration time.Time     `json:"timeEnd"`   //Date of signature expiratos. So we can remove logs of previous requests.
+	ServURL    url.URL       `json:"servURL"`   //THe URL of **us**, the node that fields requests. To prevent replay attacks across different nodes.
+}
+
+func (s *server) getURL() *url.URL {
+	if s.URL == nil {
+		log.Println("No server URL configured. Listening on default port 25566.")
+		s.URL, _ = url.Parse("tcp://127.0.0.1:25566")
+	}
+	return s.URL
 }
 
 func (s *server) getRequestCache() *cache.Cache {
@@ -37,26 +51,28 @@ func (s *server) getRequestCache() *cache.Cache {
 }
 
 func (s *server) getRSAPub(uid string) ssh.PublicKey {
-	if s.masterRSAPub == nil {
+	key, exists := s.userKeys[uid]
+	if !exists {
 		pubkeyBytes, err := ioutil.ReadFile("security/users/" + uid + ".pub")
 		if err == nil {
-			readPubKey, _, _, _, err := ssh.ParseAuthorizedKey(pubkeyBytes)
+			key, _, _, _, err = ssh.ParseAuthorizedKey(pubkeyBytes)
 			if err == nil {
-				s.masterRSAPub = readPubKey
+				s.userKeys[uid] = key
 			}
 		}
 	}
-	return s.masterRSAPub
+	return key
 }
 
 func (s *server) validRequest(request request) bool {
 	var validity bool
-	if request.Expiration.After(time.Now()) &&
-		s.servURL == request.ServURL {
-		masterPub := s.getRSAPub(request.UserID)
+	stamp := request.Stamp
+	if stamp.Expiration.After(time.Now()) &&
+		*s.URL == stamp.ServURL {
+		masterPub := s.getRSAPub(stamp.UserID)
 		if masterPub != nil {
 			bytes, err := json.Marshal(request)
-			if err != nil && masterPub.Verify(bytes, &request.Signature) == nil {
+			if err != nil && masterPub.Verify(bytes, &stamp.Signature) == nil {
 				requestString := fmt.Sprintf("%v", request)
 				_, found := s.requestCache.Get(requestString)
 				if !found {
@@ -73,16 +89,7 @@ func (s *server) validRequest(request request) bool {
 
 func (s *server) handleRequest(request request) []byte {
 	var resp []byte
-	if s.validRequest(request) {
-		response, err := http.Get(s.ipfsURL.String() + request.IPFSRequest)
-		if err != nil {
-			resp, _ = json.Marshal(err)
-		} else {
-			response.Body.Read(resp)
-		}
-	} else {
-		resp, _ = json.Marshal(errors.New("invalid authentication"))
-	}
+
 	return resp
 }
 
@@ -95,7 +102,38 @@ func (s *server) handleConnection(conn net.Conn) {
 	if err != nil {
 		resp, _ = json.Marshal(err)
 	} else {
-		resp = s.handleRequest(req)
+		if s.validRequest(req) {
+			response, err := http.Get(s.ipfsURL.String() + req.IPFSRequest)
+			if err != nil {
+				resp, _ = json.Marshal(err)
+			} else {
+				response.Body.Read(resp)
+			}
+		} else {
+			resp, _ = json.Marshal(errors.New("invalid authentication"))
+		}
 	}
 	conn.Write(resp)
+}
+
+func (s *server) start() {
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{s.tlsCert}}
+
+	servURL := s.getURL()
+
+	log.Println("Listener URL: " + servURL.String())
+	log.Println("Starting listener at port " + servURL.Port())
+	listener, err := tls.Listen("tcp", servURL.Hostname()+":"+servURL.Port(), tlsConfig)
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			go s.handleConnection(conn)
+		}
+	}
 }
