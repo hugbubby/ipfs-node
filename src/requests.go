@@ -11,13 +11,11 @@ import "errors"
 import "encoding/json"
 import "io/ioutil"
 import "golang.org/x/crypto/ssh"
-import "github.com/blang/semver"
 import "github.com/patrickmn/go-cache"
 
 type server struct {
 	requestCache *cache.Cache
-	Version      semver.Version
-	URL          *url.URL
+	url          *url.URL
 	ipfsURL      *url.URL //URL to the IPFS installatios.
 	userKeys     map[string]ssh.PublicKey
 	tlsCert      tls.Certificate
@@ -35,12 +33,20 @@ type stamp struct {
 	ServURL    url.URL       `json:"servURL"`   //THe URL of **us**, the node that fields requests. To prevent replay attacks across different nodes.
 }
 
-func (s *server) getURL() *url.URL {
-	if s.URL == nil {
-		log.Println("No server URL configured. Listening on default port 25566.")
-		s.URL, _ = url.Parse("tcp://127.0.0.1:25566")
+func (s *server) getCertificate() (tls.Certificate, error) {
+	var err error
+	if s.tlsCert.Certificate == nil {
+		s.tlsCert, err = tls.LoadX509KeyPair("security/server.cert", "security/server.pem")
 	}
-	return s.URL
+	return s.tlsCert, err
+}
+
+func (s *server) getURL() *url.URL {
+	if s.url == nil {
+		log.Println("No server URL configured. Listening on default port 25566.")
+		s.url, _ = url.Parse("tcp://127.0.0.1:25566")
+	}
+	return s.url
 }
 
 func (s *server) getRequestCache() *cache.Cache {
@@ -68,7 +74,7 @@ func (s *server) validRequest(request request) bool {
 	var validity bool
 	stamp := request.Stamp
 	if stamp.Expiration.After(time.Now()) &&
-		*s.URL == stamp.ServURL {
+		*s.url == stamp.ServURL {
 		masterPub := s.getRSAPub(stamp.UserID)
 		if masterPub != nil {
 			bytes, err := json.Marshal(request)
@@ -117,23 +123,29 @@ func (s *server) handleConnection(conn net.Conn) {
 }
 
 func (s *server) start() {
-	tlsConfig := &tls.Config{Certificates: []tls.Certificate{s.tlsCert}}
 
-	servURL := s.getURL()
+	cert, err := s.getCertificate()
+	if err == nil {
+		tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
+		servURL := s.getURL()
 
-	log.Println("Listener URL: " + servURL.String())
-	log.Println("Starting listener at port " + servURL.Port())
-	listener, err := tls.Listen("tcp", servURL.Hostname()+":"+servURL.Port(), tlsConfig)
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				log.Println(err)
-				continue
+		log.Println("Listener URL: " + servURL.String())
+		log.Println("Starting listener at port " + servURL.Port())
+		listener, err := tls.Listen("tcp", servURL.Hostname()+":"+servURL.Port(), tlsConfig)
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			for {
+				conn, err := listener.Accept()
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				go s.handleConnection(conn)
 			}
-			go s.handleConnection(conn)
 		}
+	} else {
+		log.Println("could not load TLS certificate")
 	}
+	log.Println(err)
 }

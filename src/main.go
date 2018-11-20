@@ -6,7 +6,11 @@ func main() {
 	log.SetFlags(log.Lshortfile)
 
 	config := new(configuration)
-	config.loadFile("config.json")
-	server := config.makeServer()
-	server.start()
+	err := config.loadFile("config.json")
+	if err == nil {
+		server := config.makeServer()
+		server.start()
+	} else {
+		log.Fatal(err)
+	}
 }

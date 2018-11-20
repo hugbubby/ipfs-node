@@ -1,6 +1,7 @@
 package main
 
 import "encoding/json"
+import "strings"
 import "os"
 import "net/url"
 
@@ -15,11 +16,31 @@ type configuration struct {
 func (config *configuration) loadFile(filename string) error {
 	var err error
 	file, err := os.Open(filename)
-	defer file.Close()
 	if err == nil {
-		decoder := json.NewDecoder(file)
-		err = decoder.Decode(config)
+		var filedirname string
+		if filename != "" {
+			i := strings.LastIndex(filename, "\\")
+			if i == -1 {
+				i = strings.LastIndex(filename, "/")
+				if i == -1 {
+					i = 0
+				}
+			}
+			filedirname = filename[0:i]
+		} else {
+			filedirname = ""
+		}
+		filedir, err := os.Open(filedirname)
+		if err == nil {
+			err = filedir.Chdir()
+			if err == nil {
+				decoder := json.NewDecoder(file)
+				err = decoder.Decode(config)
+			}
+		}
+		filedir.Close()
 	}
+	file.Close()
 	return err
 }
 
@@ -33,7 +54,7 @@ func (config *configuration) makeServer() server {
 
 	serverURL, err := url.Parse(config.ServerURL)
 	if err == nil {
-		s.URL = serverURL
+		s.url = serverURL
 	}
 
 	return s
