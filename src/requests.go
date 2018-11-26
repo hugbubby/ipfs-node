@@ -29,8 +29,8 @@ type request struct {
 type stamp struct {
 	UserID     string        `json:"userID"`    //The "ID" of the user, atm just the prefix of their public key
 	Signature  ssh.Signature `json:"signature"` //Signature from the user's private key
-	Expiration time.Time     `json:"timeEnd"`   //Date of signature expiratos. So we can remove logs of previous requests.
-	ServURL    url.URL       `json:"servURL"`   //THe URL of **us**, the node that fields requests. To prevent replay attacks across different nodes.
+	Expiration time.Time     `json:"timeEnd"`   //Date of signature expiration. So we can remove logs of previous requests.
+	ServURL    string        `json:"servURL"`   //THe URL of **us**, the node that fields requests. To prevent replay attacks across different nodes.
 }
 
 func (s *server) getCertificate() (tls.Certificate, error) {
@@ -43,7 +43,7 @@ func (s *server) getCertificate() (tls.Certificate, error) {
 
 func (s *server) getURL() *url.URL {
 	if s.url == nil {
-		log.Println("No server URL configured. Listening on default port 25566.")
+		log.Println("No server URL configured. Assuming we listen on default port 25566.")
 		s.url, _ = url.Parse("tcp://127.0.0.1:25566")
 	}
 	return s.url
@@ -70,25 +70,27 @@ func (s *server) getRSAPub(uid string) ssh.PublicKey {
 	return key
 }
 
+//TODO: Write the cache to some file so that we can reload it if the server goes down
 func (s *server) validRequest(request request) bool {
 	var validity bool
 	stamp := request.Stamp
-	if stamp.Expiration.After(time.Now()) &&
-		*s.url == stamp.ServURL {
-		masterPub := s.getRSAPub(stamp.UserID)
-		if masterPub != nil {
-			bytes, err := json.Marshal(request)
-			if err != nil && masterPub.Verify(bytes, &stamp.Signature) == nil {
-				requestString := fmt.Sprintf("%v", request)
-				_, found := s.requestCache.Get(requestString)
-				if !found {
-					s.requestCache.Set(requestString, 0, cache.DefaultExpiration)
-					validity = true
+	if stamp.Expiration.After(time.Now()) { //If the stamp has not expired.
+		url, _ := url.Parse(stamp.ServURL)
+		if *s.url == *url { //IF we are the URL indicated on the stamp
+			masterPub := s.getRSAPub(stamp.UserID)
+			if masterPub != nil { //if it is a valid userid
+				bytes, err := json.Marshal(request)
+				if err != nil && masterPub.Verify(bytes, &stamp.Signature) == nil { //If the RSA signature is valid for their userid
+					requestString := fmt.Sprintf("%v", request)
+					_, found := s.requestCache.Get(requestString)
+					if !found { //If this stamp hasn't been used before
+						s.requestCache.Set(requestString, 0, cache.DefaultExpiration)
+						validity = true
+					}
 				}
+
 			}
-
 		}
-
 	}
 	return validity
 }
