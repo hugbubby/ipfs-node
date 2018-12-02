@@ -1,42 +1,47 @@
-\documentclass[12pt, letterpaper]{article} \usepackage[utf8]{inputenc}
-\usepackage{bera}% optional: just to have a nice mono-spaced font
-\usepackage{listings} \usepackage{xcolor}
+\documentclass{article} 
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
 
-\colorlet{punct}{red!60!black} \definecolor{background}{HTML}{EEEEEE}
-\definecolor{delim}{RGB}{20,105,176} \colorlet{numb}{magenta!60!black}
-
-\lstdefinelanguage{json}{ basicstyle=\normalfont\ttfamily, numbers=left,
-    numberstyle=\scriptsize, stepnumber=1, numbersep=8pt,
-    showstringspaces=false, breaklines=true, frame=lines,
-    backgroundcolor=\color{background}, literate= *{0}{{{\color{numb}0}}}{1}
-    {1}{{{\color{numb}1}}}{1} {2}{{{\color{numb}2}}}{1}
-    {3}{{{\color{numb}3}}}{1} {4}{{{\color{numb}4}}}{1}
-    {5}{{{\color{numb}5}}}{1} {6}{{{\color{numb}6}}}{1}
-    {7}{{{\color{numb}7}}}{1} {8}{{{\color{numb}8}}}{1}
-    {9}{{{\color{numb}9}}}{1} {:}{{{\color{punct}{:}}}}{1}
-    {,}{{{\color{punct}{,}}}}{1} {\{}{{{\color{delim}{\{}}}}{1}
-    {\}}{{{\color{delim}{\}}}}}{1} {[}{{{\color{delim}{[}}}}{1}
-    {]}{{{\color{delim}{]}}}}{1}, }
-
-
-\title{Be your own IPFS Storage} \author{Dean F. Valentine Jr.} \date{November
-2018} 
+\title{IPFS-Node} 
+\author{Dean F. Valentine Jr.} 
+\date{\today}
 
 \begin{document}
 
-\begin{titlepage} \maketitle \end{titlepage}
+\maketitle
 
 \section{Introduction}
 
-I have looked for a bit, and not found a FLOSS implemmentation of remote HTTP
-proxy for IPFS instances. Well, here it is (in experimental stages).
-IPFS-Remote lets you manage your remote IPFS instances by sending authenticated
-requests to the IPFS HTTP API, With IPFS-Remote, you manage a repository of
-public RSA keys, the counterparts of which ``users'' (really just key labels)
-sign their HTTP requests with. The project is intended to be scalable and
-iterable, and provides a minimal set of features so that other developers can
-build on top of it if they like. All this repository does is take valid, signed
-GET requests and forwards them to the IPFS instance.
+I have looked for a bit, and not found a FLOSS implemmentation of an extensible,
+lightweight, remote HTTP proxy for IPFS instances. Well, here it is (in
+experimental stages).  IPFS-Node lets you manage your remote IPFS instances by
+sending authenticated requests to this server, which forwards them to the IPFS
+HTTP API, IPFS Remote requires just a single RSA/ECDSA key in the x509 format,
+and uses that to verify incoming JSON Web Tokens passed along with the requests,
+which it transparently forwards to the IPFS instance configured.
+
+\section{Installation}
+
+IPFS-Node is not currently in the repositories of any mainstream linux
+distributions, nor does it provide an installation binary for windows/macos.
+Currently the only way to install IPFS-Node is to compile and run/schedule it
+yourself, placing relevant configuration files in the local directory. This is
+going to be remedied soon.
+
+\section{Configuration}
+
+IPFS-Node requires a configuration file located at config.json in the directory
+where it is run. A sample configuration file is located in the github
+repository and should be self explanatory.
+
+\section{Security}
+
+The IPFS-Node proxy runs only on HTTPS and thus requires a TLS keypair to
+startup. IPFS-Node also requires one or more public keys for use in verifying
+the signature of IPFS tokens. IPFS-Node supports all of the keys that the
+golang standard library can parse from the X509 standard, namely ECDSA, RSA,
+and DSA.
+
 
 \end{document}
 
