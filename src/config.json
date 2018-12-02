@@ -1,8 +1,5 @@
 {
-    "ticketmaster" : {
-        "version": "0.0.1",
-        "servURL" : "tcp://127.0.0.1:25566",
-        "ipfsURL" : "http://127.0.0.1:5001"
-    }
+    "serverAddress" : "127.0.0.1:25566",
+    "ipfsAddress" : "http://127.0.0.1:5001"
 }
 
