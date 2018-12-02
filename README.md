@@ -1,4 +1,4 @@
-# ipfs-remote
+# ipfs-node
 A simple server that receives and handles authenticated requests to interact with the IPFS API for use in other applications.
 
 Its featureset is very small - It takes JWT's (Json Web Tokens), along with a request to the IPFS HTTP API. If the JWT is valid,
@@ -12,4 +12,4 @@ This project does not come standard with a method of generating JWT tokens in th
 client application(s) to generate such tickets in a manner it feels responsible. An example implemmentation of a ticketmaster that
 fits most standard use cases is coming soon.
 
-Specific details on how to use IPFS-Remote and its protocol specs are located in the .tex and .pdf documents under /docs/.
+Specific details on how to use IPFS-Node and its protocol specs are located in the .tex and .pdf documents under /docs/.

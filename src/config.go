@@ -12,10 +12,10 @@ type configuration struct {
 }
 
 type serverConfig struct {
-	Address      string `json:"address"`
-	TLSCertPath  string `json:"tlsCertPath"`
-	TLSKeyPath   string `json:"tlsKeyPath"`
-	TokenKeyPath string `json:"tokenKeyPath"`
+	Address     string `json:"address"`
+	TLSCertPath string `json:"tlsCertPath"`
+	TLSKeyPath  string `json:"tlsKeyPath"`
+	TokenKeyDir string `json:"tokenKeyDir"`
 }
 
 type ipfsAPIConfig struct {
@@ -41,7 +41,7 @@ func (config *configuration) makeServer() server {
 
 	s.tlsKeyPath = config.Server.TLSKeyPath
 	s.tlsCertPath = config.Server.TLSCertPath
-	s.tokenKeyPath = config.Server.TokenKeyPath
+	s.tokenKeyDir = config.Server.TokenKeyDir
 
 	return s
 }

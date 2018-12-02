@@ -1,6 +1,5 @@
 package main
 
-import "fmt"
 import "log"
 import "io"
 import "io/ioutil"
@@ -11,19 +10,62 @@ import "encoding/pem"
 import "github.com/dgrijalva/jwt-go"
 
 type server struct {
-	address      string //URL of server.
-	ipfsAddress  string
-	tlsCertPath  string
-	tlsKeyPath   string
-	tokenKey     interface{} //RSA, ECDSA, ETC //Public Key, not Private
-	tokenKeyPath string
+	address       string //URL of server.
+	ipfsAddress   string
+	tlsCertPath   string
+	tlsKeyPath    string
+	tokenKeys     []interface{} //RSA, ECDSA, ETC //Public Key, not Private
+	tokenKeyNames []string
+	tokenKeyDir   string
 }
 
-func (s *server) getTokenKeyPath() string {
-	if s.tokenKeyPath == "" {
-		s.tokenKeyPath = "security/tokens/pub.cert"
+func (s *server) getTokenDirPath() string {
+	if s.tokenKeyDir == "" {
+		s.tokenKeyDir = "security/tokens/pub.cert"
 	}
-	return s.tokenKeyPath
+	return s.tokenKeyDir
+}
+
+func (s *server) getTokenKeyNames() []string {
+	if s.tokenKeyNames == nil {
+		tokenKeyFiles, err := ioutil.ReadDir(s.getTokenDirPath())
+		if err != nil {
+			s.tokenKeyNames = make([]string, len(tokenKeyFiles))
+			for i, k := range tokenKeyFiles {
+				s.tokenKeyNames[i] = k.Name()
+			}
+		} else {
+			log.Println("error attempting to load keys from", s.getTokenDirPath(), err)
+		}
+	}
+	return s.tokenKeyNames
+}
+
+func (s *server) getTokenKeys() ([]interface{}, error) {
+	var err error
+	if s.tokenKeys == nil {
+		s.tokenKeys = make([]interface{}, len(s.getTokenKeyNames()))
+		for i, k := range s.getTokenKeyNames() {
+			var bytes []byte
+			bytes, err = ioutil.ReadFile(s.getTokenDirPath() + k)
+			if err == nil {
+				block, _ := pem.Decode(bytes)
+				if block != nil {
+					var key interface{}
+					key, err = x509.ParsePKIXPublicKey(block.Bytes)
+					if err == nil {
+						s.tokenKeys[i] = key
+					} else {
+						log.Println("failed to parse", k+"'s PEM block - ",
+							"is your private key corrupted?!")
+					}
+				} else {
+					log.Println("failed to decode token authentication key - is it in the PEM format?")
+				}
+			}
+		}
+	}
+	return s.tokenKeys, err
 }
 
 func (s *server) getTLSKeyPath() string {
@@ -72,28 +114,17 @@ func (s *server) validToken(token *jwt.Token) bool {
 }
 
 func (s *server) getTokenKey(token *jwt.Token) (interface{}, error) {
-	var err error
-	if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-		err = fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-	} else {
-		if s.tokenKey == nil {
-			var bytes []byte
-			bytes, err = ioutil.ReadFile(s.getTokenKeyPath())
-			if err == nil {
-				block, _ := pem.Decode(bytes)
-				if block != nil {
-					var key interface{}
-					key, err = x509.ParsePKIXPublicKey(block.Bytes)
-					if err == nil {
-						s.tokenKey = key
-					}
-				} else {
-					err = fmt.Errorf("failed to decode token authentication key - is it in the PEM format?")
-				}
+	var key interface{}
+	keys, err := s.getTokenKeys()
+	if err != nil {
+		for i, k := range keys {
+			if s.getTokenKeyNames()[i] == token.Header["kid"] {
+				key = k
+				break
 			}
 		}
 	}
-	return s.tokenKey, err
+	return key, err
 }
 
 func (s *server) ServeHTTP(rw http.ResponseWriter, req *http.Request) {

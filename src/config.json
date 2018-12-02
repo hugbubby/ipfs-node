@@ -3,7 +3,7 @@
         "address" : "127.0.0.1:25566",
         "tlsCertPath" : "security/tls/pub.cert",
         "tlsKeyPath" : "security/tls/privkey.pem",
-        "tokenKeyPath" : "security/tokens/privkey.pem"
+        "tokenKeyDir" : "security/tokens/keys/"
     },
     "ipfsAPI" : {
         "address" : "127.0.0.1:5001"
