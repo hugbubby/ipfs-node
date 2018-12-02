@@ -15,13 +15,13 @@ type server struct {
 	ipfsAddress  string
 	tlsCertPath  string
 	tlsKeyPath   string
-	tokenKey     interface{} //RSA, ECDSA, ETC
+	tokenKey     interface{} //RSA, ECDSA, ETC //Public Key, not Private
 	tokenKeyPath string
 }
 
 func (s *server) getTokenKeyPath() string {
 	if s.tokenKeyPath == "" {
-		s.tokenKeyPath = "security/tokens/privkey.pem"
+		s.tokenKeyPath = "security/tokens/pub.cert"
 	}
 	return s.tokenKeyPath
 }
@@ -83,7 +83,7 @@ func (s *server) getTokenKey(token *jwt.Token) (interface{}, error) {
 				block, _ := pem.Decode(bytes)
 				if block != nil {
 					var key interface{}
-					key, err = x509.ParsePKCS8PrivateKey(block.Bytes)
+					key, err = x509.ParsePKIXPublicKey(block.Bytes)
 					if err == nil {
 						s.tokenKey = key
 					}
