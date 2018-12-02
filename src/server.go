@@ -5,6 +5,7 @@ import "log"
 import "io"
 import "io/ioutil"
 import "net/http"
+import "net/http/httputil"
 import "crypto/x509"
 import "encoding/pem"
 import "github.com/dgrijalva/jwt-go"
@@ -96,30 +97,34 @@ func (s *server) getTokenKey(token *jwt.Token) (interface{}, error) {
 }
 
 func (s *server) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	if req.Method == "GET" { //IPFS HTTP API only supports get requests.
-		tokenS := req.FormValue("ipfsrToken")
-		if tokenS != "" {
-			t, err := jwt.Parse(tokenS, s.getTokenKey)
-			if err == nil {
-				if s.validToken(t) {
-					var resp *http.Response
-					var err error
-					if req.FormValue("arg") == "" {
-						resp, err = http.Get(s.getIPFSAddress() + req.URL.Path)
-					} else {
-						resp, err = http.Get(s.getIPFSAddress() + req.URL.Path + "?arg=" + req.FormValue("arg"))
+	requestDump, err := httputil.DumpRequest(req, false)
+	if err == nil {
+		log.Printf("New Request:\n%s\n", requestDump)
+		if req.Method == "GET" { //IPFS HTTP API only supports get requests.
+			tokenS := req.FormValue("ipfsrToken")
+			if tokenS != "" {
+				t, err := jwt.Parse(tokenS, s.getTokenKey)
+				if err == nil {
+					if s.validToken(t) {
+						var resp *http.Response
+						var err error
+						if req.FormValue("arg") == "" {
+							resp, err = http.Get(s.getIPFSAddress() + req.URL.Path)
+						} else {
+							resp, err = http.Get(s.getIPFSAddress() + req.URL.Path + "?arg=" + req.FormValue("arg"))
+						}
+						if err == nil {
+							copyHeader(rw.Header(), resp.Header)
+							rw.WriteHeader(resp.StatusCode)
+							io.Copy(rw, resp.Body)
+							resp.Body.Close()
+						} else {
+							log.Printf("failed to forward authenticated request to IPFS server, %v", err)
+						}
 					}
-					if err == nil {
-						copyHeader(rw.Header(), resp.Header)
-						rw.WriteHeader(resp.StatusCode)
-						io.Copy(rw, resp.Body)
-						resp.Body.Close()
-					} else {
-						log.Printf("failed to forward authenticated request to IPFS server, %v", err)
-					}
+				} else {
+					log.Printf("error while attempting to parse token from string: %v", err)
 				}
-			} else {
-				log.Printf("error while attempting to parse token from string: %v", err)
 			}
 		}
 	}
@@ -127,11 +132,8 @@ func (s *server) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 func (s *server) start() {
 	address := s.getAddress()
-	certificatePath := s.getTLSCertPath()
-	keyPath := s.getTLSKeyPath()
-
 	log.Println(address)
-	err := http.ListenAndServeTLS(address, certificatePath, keyPath, s)
+	err := http.ListenAndServeTLS(address, s.getTLSCertPath(), s.getTLSKeyPath(), s)
 	if err != nil {
 		log.Fatal(err)
 	}

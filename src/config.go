@@ -7,8 +7,19 @@ import "os"
 //Unmarshal json config into one of these
 //structs.
 type configuration struct {
-	ServerAddress string `json:"serverAddress"`
-	IpfsAddress   string `json:"ipfsAddress"`
+	Server  serverConfig  `json:"server"`
+	IpfsAPI ipfsAPIConfig `json:"ipfsAPI"`
+}
+
+type serverConfig struct {
+	Address      string `json:"address"`
+	TLSCertPath  string `json:"tlsCertPath"`
+	TLSKeyPath   string `json:"tlsKeyPath"`
+	TokenKeyPath string `json:"tokenKeyPath"`
+}
+
+type ipfsAPIConfig struct {
+	Address string `json:"address"`
 }
 
 func (config *configuration) loadFile(filename string) error {
@@ -25,8 +36,12 @@ func (config *configuration) loadFile(filename string) error {
 func (config *configuration) makeServer() server {
 	var s server
 
-	s.ipfsAddress = config.IpfsAddress
-	s.address = config.ServerAddress
+	s.address = config.Server.Address
+	s.ipfsAddress = config.IpfsAPI.Address
+
+	s.tlsKeyPath = config.Server.TLSKeyPath
+	s.tlsCertPath = config.Server.TLSCertPath
+	s.tokenKeyPath = config.Server.TokenKeyPath
 
 	return s
 }
