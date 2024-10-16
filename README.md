@@ -7,6 +7,7 @@ request to the IPFS HTTP API. If the JWT is valid, it forwards the request. If
 it is not, it doesn't. The token type it accepts is the default specified in
 the JWT-go library.
 
+
 The main use case of this project is for larger IPFS data storage applications
 that require a secure method of accessing multiple different IPFS instances,
 especially use cases that require centralized control to maintain security in
