@@ -16,6 +16,7 @@ This project does not come standard with a method of generating JWT tokens in
 the style mentioned above, nor does it come with a method of managing users.
 Instead, a ticketmaster application should be built around ipfs-node to manage
 what keys the node considers valid and/or the distribution of JWT Tokens.
+
 Implemmentation of a such a program that fits most standard use cases is coming
 soon and has been deliberately isolated from ipfs-node so it can be swapped as
 necessary.
