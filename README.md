@@ -20,5 +20,7 @@ Implemmentation of a such a program that fits most standard use cases is coming
 soon and has been deliberately isolated from ipfs-node so it can be swapped as
 necessary.
 
+
+
 Specific details on how to use IPFS-Node and its protocol specs are located in
 the .tex and .pdf documents under /docs/.
