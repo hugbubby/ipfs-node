@@ -12,6 +12,7 @@ that require a secure method of accessing multiple different IPFS instances,
 especially use cases that require centralized control to maintain security in
 the event of the compromise or failure of one or more ipfs nodes. 
 
+
 This project does not come standard with a method of generating JWT tokens in
 the style mentioned above, nor does it come with a method of managing users.
 Instead, a ticketmaster application should be built around ipfs-node to manage
