@@ -8,10 +8,10 @@ it is not, it doesn't. The token type it accepts is the default specified in
 the JWT-go library.
 
 
-The main use case of this project is for larger IPFS data storage applications
-that require a secure method of accessing multiple different IPFS instances,
-especially use cases that require centralized control to maintain security in
-the event of the compromise or failure of one or more ipfs nodes. 
+    The main use case of this project is for larger IPFS data storage applications
+    that require a secure method of accessing multiple different IPFS instances,
+    especially use cases that require centralized control to maintain security in
+    the event of the compromise or failure of one or more ipfs nodes. 
 
 This project does not come standard with a method of generating JWT tokens in
 the style mentioned above, nor does it come with a method of managing users.
