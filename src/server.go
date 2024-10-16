@@ -164,6 +164,7 @@ func (s *server) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 func (s *server) start() {
 	address := s.getAddress()
 	log.Println(address)
+	//Test One Two Three
 	err := http.ListenAndServeTLS(address, s.getTLSCertPath(), s.getTLSKeyPath(), s)
 	if err != nil {
 		log.Fatal(err)
